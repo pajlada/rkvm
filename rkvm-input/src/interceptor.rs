@@ -107,22 +107,19 @@ impl Interceptor {
     }
 
     pub fn name(&self) -> &CStr {
-        let name = unsafe { glue::libevdev_get_name(self.evdev.as_ptr()) };
-        let name = unsafe { CStr::from_ptr(name) };
-
-        name
+        self.evdev.name()
     }
 
     pub fn vendor(&self) -> u16 {
-        unsafe { glue::libevdev_get_id_vendor(self.evdev.as_ptr()) as _ }
+        self.evdev.vendor()
     }
 
     pub fn product(&self) -> u16 {
-        unsafe { glue::libevdev_get_id_product(self.evdev.as_ptr()) as _ }
+        self.evdev.product()
     }
 
     pub fn version(&self) -> u16 {
-        unsafe { glue::libevdev_get_id_version(self.evdev.as_ptr()) as _ }
+        self.evdev.version()
     }
 
     pub fn rel(&self) -> RelCaps {
