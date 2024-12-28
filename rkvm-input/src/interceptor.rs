@@ -4,6 +4,7 @@ pub use caps::{AbsCaps, KeyCaps, RelCaps, Repeat};
 
 use crate::abs::{AbsAxis, AbsEvent, ToolType};
 use crate::convert::Convert;
+use crate::device::DeviceSpec;
 use crate::evdev::Evdev;
 use crate::event::Event;
 use crate::glue;
@@ -177,9 +178,28 @@ impl Interceptor {
         }
     }
 
-    #[tracing::instrument(skip(registry))]
-    pub(crate) async fn open(path: &Path, registry: &Registry) -> Result<Self, OpenError> {
+    #[tracing::instrument(skip(registry, device_allowlist))]
+    pub(crate) async fn open(
+        path: &Path,
+        registry: &Registry,
+        device_allowlist: &[DeviceSpec],
+    ) -> Result<Self, OpenError> {
         let evdev = Evdev::open(path).await?;
+
+        // An empty allowlist means we allow all devices
+        if !device_allowlist.is_empty() {
+            let name = evdev.name();
+            let vendor_id = evdev.vendor();
+            let product_id = evdev.product();
+
+            if !device_allowlist
+                .iter()
+                .any(|check| check.matches(&name, &vendor_id, &product_id))
+            {
+                return Err(OpenError::NotMatchingAllowlist);
+            }
+        }
+
         let metadata = evdev.file().unwrap().get_ref().metadata()?;
 
         let reader_handle = registry
@@ -276,6 +296,8 @@ unsafe impl Send for Interceptor {}
 pub(crate) enum OpenError {
     #[error("Not appliable")]
     NotAppliable,
+    #[error("Device doesn't match allowlist")]
+    NotMatchingAllowlist,
     #[error(transparent)]
     Io(#[from] Error),
 }
